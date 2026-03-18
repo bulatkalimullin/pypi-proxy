@@ -4,11 +4,109 @@
 
 @layer base {
   :root {
+    color-scheme: light;
+    --background: 0 0% 100%;
+    --foreground: 222 47% 11%;
+    --card: 210 40% 98%;
+    --card-foreground: 222 47% 11%;
+    --muted: 210 40% 93%;
+    --muted-foreground: 215 16% 47%;
+    --border: 214 32% 86%;
+    --input: 214 32% 86%;
+    --primary: 243 75% 59%;
+    --primary-foreground: 210 40% 98%;
+    --ring: 243 75% 59%;
+    --success: 142 72% 29%;
+    --success-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Ecosystem accent colors */
+    --eco-python: 243 75% 59%;
+    --eco-npm:    0 76% 51%;
+    --eco-nuget:  208 100% 30%;
+    --eco-docker: 210 85% 55%;
+
+    /* Elevation shadows */
+    --shadow-sm: 0 1px 2px hsl(var(--foreground) / 0.04);
+    --shadow-md: 0 4px 12px hsl(var(--foreground) / 0.08);
+    --shadow-lg: 0 8px 24px hsl(var(--foreground) / 0.12);
+  }
+
+  .dark {
     color-scheme: dark;
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --primary: 243 75% 59%;
+    --primary-foreground: 210 40% 98%;
+    --ring: 243 75% 59%;
+    --success: 142 72% 45%;
+    --success-foreground: 0 0% 100%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Ecosystem accent colors — slightly lighter for dark mode legibility */
+    --eco-python: 243 75% 65%;
+    --eco-npm:    0 76% 60%;
+    --eco-nuget:  208 100% 45%;
+    --eco-docker: 210 85% 62%;
+
+    /* Elevation shadows — stronger on dark */
+    --shadow-sm: 0 1px 2px hsl(0 0% 0% / 0.18);
+    --shadow-md: 0 4px 16px hsl(0 0% 0% / 0.30);
+    --shadow-lg: 0 8px 28px hsl(0 0% 0% / 0.42);
   }
 
   body {
     @apply bg-background text-foreground antialiased;
   }
+
+  /* Safe area for mobile bottom nav */
+  .safe-area-pb {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
 }
 
+/* highlight.js — dark theme for .dark, light for :root */
+.hljs {
+  background: transparent;
+  color: hsl(var(--foreground));
+}
+.dark .hljs-keyword,
+.dark .hljs-selector-tag,
+.dark .hljs-title { color: #79b8ff; }
+.dark .hljs-string,
+.dark .hljs-attr { color: #9ecbff; }
+.dark .hljs-comment { color: hsl(var(--muted-foreground)); font-style: italic; }
+.dark .hljs-number,
+.dark .hljs-literal { color: #f8c555; }
+.dark .hljs-built_in,
+.dark .hljs-type { color: #b392f0; }
+.dark .hljs-name,
+.dark .hljs-function { color: #b392f0; }
+.dark .hljs-variable,
+.dark .hljs-params { color: hsl(var(--foreground)); }
+.dark .hljs-tag { color: #7ee787; }
+
+:root .hljs-keyword,
+:root .hljs-selector-tag,
+:root .hljs-title { color: #0070f3; }
+:root .hljs-string,
+:root .hljs-attr { color: #067d17; }
+:root .hljs-comment { color: hsl(var(--muted-foreground)); font-style: italic; }
+:root .hljs-number,
+:root .hljs-literal { color: #795da3; }
+:root .hljs-built_in,
+:root .hljs-type { color: #795da3; }
+:root .hljs-name,
+:root .hljs-function { color: #6f42c1; }
+:root .hljs-tag { color: #22863a; }
+
+/* Markdown content first heading no margin */
+.md-content > *:first-child { margin-top: 0 !important; }

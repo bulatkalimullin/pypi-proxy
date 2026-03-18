@@ -8,6 +8,7 @@ from fastapi.responses import FileResponse, RedirectResponse, Response
 
 from app.services.cache import FileCache, MetadataCache
 from app.services.pypi_client import PyPIError, SharedPyPIClient
+from app.services.stats import DownloadStats
 
 
 router = APIRouter()
@@ -25,9 +26,11 @@ async def download(request: Request, name: str, version: str, filename: str) -> 
     file_cache: FileCache = request.app.state.file_cache
     meta_cache: MetadataCache = request.app.state.meta_cache
     pypi: SharedPyPIClient = request.app.state.pypi
+    stats: DownloadStats = request.app.state.download_stats
 
     dest: Path = file_cache.path_for(name, version, filename)
     if dest.is_file():
+        stats.record(name)
         return FileResponse(path=str(dest), filename=filename)
 
     key = f"ver:{name}:{version}"
@@ -44,6 +47,7 @@ async def download(request: Request, name: str, version: str, filename: str) -> 
     client = await pypi.get()
     file_cache.ensure_parent(dest)
     await client.download_file(url=url, dest_path=str(dest))
+    stats.record(name)
     return FileResponse(path=str(dest), filename=filename)
 
 

@@ -57,3 +57,28 @@ class FileCache:
     def ensure_parent(self, path: Path) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
 
+    def delete_package(self, package: str) -> bool:
+        """Delete all cached files for a package. Returns True if directory existed."""
+        import shutil
+        pkg_dir = self.root_dir / _safe_segment(package)
+        if pkg_dir.is_dir():
+            shutil.rmtree(pkg_dir, ignore_errors=True)
+            return True
+        return False
+
+    def disk_usage(self) -> tuple[int, int]:
+        """Returns (total_bytes, file_count) for cached files (excludes index files)."""
+        total_bytes = 0
+        file_count = 0
+        for path in self.root_dir.rglob("*"):
+            if path.is_file() and not path.name.endswith(".txt"):
+                total_bytes += path.stat().st_size
+                file_count += 1
+        return total_bytes, file_count
+
+    def list_packages(self) -> list[str]:
+        """List all package directories in the cache."""
+        if not self.root_dir.exists():
+            return []
+        return sorted([p.name for p in self.root_dir.iterdir() if p.is_dir()])
+

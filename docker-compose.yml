@@ -9,8 +9,12 @@ services:
       - CACHE_DIR=/app/cache
       - METADATA_TTL_SECONDS=900
       - PYPI_BASE_URL=https://pypi.org
-      - PUBLIC_BASE_URL=http://lab.webflare.ru:8888
+      - PUBLIC_BASE_URL=${PUBLIC_BASE_URL:-http://localhost:8888}
       - SIMPLE_INDEX_TTL_SECONDS=86400
+      - NPM_REGISTRY_URL=${NPM_REGISTRY_URL:-https://registry.npmjs.org}
+      - NUGET_REGISTRY_URL=${NUGET_REGISTRY_URL:-https://api.nuget.org}
+      - DOCKER_REGISTRY_URL=${DOCKER_REGISTRY_URL:-https://registry-1.docker.io}
+      - DOCKER_AUTH_URL=${DOCKER_AUTH_URL:-https://auth.docker.io/token}
     volumes:
       - ./cache:/app/cache
 
@@ -22,3 +26,5 @@ services:
       - "5173:5173"
     depends_on:
       - backend
+    environment:
+      - VITE_PUBLIC_BASE_URL=${PUBLIC_BASE_URL:-http://localhost:8888}

@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 import { TabBar } from "./TabBar";
 import { CodeBlock } from "./CodeBlock";
 
-type Tab = "pip" | "pipconf" | "requirements";
+type Tab = "dotnet" | "nuget_config" | "pkg_manager";
 
 function proxyBase(): string {
   const fromEnv = import.meta.env.VITE_PUBLIC_BASE_URL as string | undefined;
@@ -15,7 +15,7 @@ function proxyBase(): string {
   return u.toString().replace(/\/$/, "");
 }
 
-const ACCENT = "hsl(var(--eco-python))";
+const ACCENT = "hsl(var(--eco-nuget))";
 
 function TerminalIcon() {
   return (
@@ -36,37 +36,37 @@ function FileIcon() {
   );
 }
 
-export function PipInstallBox({ packageName }: { packageName: string }) {
-  const [tab, setTab] = useState<Tab>("pip");
+export function NugetInstallBox({ packageId }: { packageId: string }) {
+  const [tab, setTab] = useState<Tab>("dotnet");
   const base = useMemo(() => proxyBase(), []);
 
-  let hostname = "localhost";
-  try {
-    hostname = new URL(base.startsWith("http") ? base : `http://${base}`).hostname;
-  } catch { /* keep default */ }
-
   const content: Record<Tab, { code: string; filename: string; setup: boolean }> = {
-    pip: {
-      code: `pip install --index-url ${base}/simple \\\n  --trusted-host ${hostname} \\\n  ${packageName}`,
+    dotnet: {
+      code: `dotnet add package ${packageId} \\\n  --source ${base}/nuget/v3/index.json`,
       filename: "terminal",
       setup: false,
     },
-    pipconf: {
-      code: `[global]\nindex-url = ${base}/simple\ntrusted-host = ${hostname}`,
-      filename: "pip.conf / pip.ini",
+    nuget_config: {
+      code: `<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+  <packageSources>
+    <add key="pkg-proxy" value="${base}/nuget/v3/index.json" />
+  </packageSources>
+</configuration>`,
+      filename: "NuGet.Config",
       setup: true,
     },
-    requirements: {
-      code: `--index-url ${base}/simple\n--trusted-host ${hostname}\n${packageName}`,
-      filename: "requirements.txt",
+    pkg_manager: {
+      code: `Install-Package ${packageId} -Source ${base}/nuget/v3/index.json`,
+      filename: "Package Manager Console",
       setup: false,
     },
   };
 
   const tabs = [
-    { key: "pip", label: "pip install", icon: <TerminalIcon /> },
-    { key: "pipconf", label: "pip.conf", icon: <FileIcon /> },
-    { key: "requirements", label: "requirements.txt", icon: <FileIcon /> },
+    { key: "dotnet",      label: "dotnet CLI",    icon: <TerminalIcon /> },
+    { key: "nuget_config", label: "NuGet.Config", icon: <FileIcon /> },
+    { key: "pkg_manager", label: "pkg manager",   icon: <TerminalIcon /> },
   ];
 
   const current = content[tab];
@@ -77,21 +77,21 @@ export function PipInstallBox({ packageName }: { packageName: string }) {
       <div className="flex items-start justify-between gap-2 mb-1">
         <div className="text-sm font-semibold">Install via proxy</div>
         <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full"
-          style={{ backgroundColor: "hsl(var(--eco-python)/0.10)", color: ACCENT }}>
-          PyPI
+          style={{ backgroundColor: "hsl(var(--eco-nuget)/0.10)", color: ACCENT }}>
+          NuGet
         </span>
       </div>
-      <p className="text-xs text-muted-foreground mb-3">Python package proxy with server-side caching.</p>
+      <p className="text-xs text-muted-foreground mb-3">NuGet registry proxy with server-side caching.</p>
 
       <TabBar
         tabs={tabs}
         active={tab}
         onChange={(k) => setTab(k as Tab)}
         accentColor={ACCENT}
-        layoutId="pip-tab"
+        layoutId="nuget-tab"
       />
 
-      <div className="mt-2 flex items-center gap-2 flex-wrap">
+      <div className="mt-2 flex items-center gap-2">
         {current.setup ? (
           <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-green-500/10 text-green-600 dark:text-green-400">
             Configure once
@@ -101,17 +101,9 @@ export function PipInstallBox({ packageName }: { packageName: string }) {
             Per-command
           </span>
         )}
-        {tab === "pip" && (
-          <span
-            className="text-[10px] text-muted-foreground cursor-help border-b border-dashed border-muted-foreground/40"
-            title="Required when the proxy uses HTTP or a self-signed certificate"
-          >
-            Why --trusted-host?
-          </span>
-        )}
-        {tab === "pipconf" && (
+        {tab === "nuget_config" && (
           <span className="text-[10px] text-muted-foreground">
-            Place in <code className="font-mono">~/.config/pip/pip.conf</code> (Linux) or <code className="font-mono">~/Library/Application Support/pip/pip.conf</code> (macOS)
+            Place in solution root or <code className="font-mono">%APPDATA%\NuGet\</code>
           </span>
         )}
       </div>
@@ -119,7 +111,7 @@ export function PipInstallBox({ packageName }: { packageName: string }) {
       <CodeBlock
         content={current.code}
         filename={current.filename}
-        language="bash"
+        language={tab === "nuget_config" ? "xml" : "bash"}
       />
     </div>
   );
