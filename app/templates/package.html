@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}{{ name }}{% endblock %}
+{% block content %}
+  {% if error %}
+    <div class="rounded-xl border border-rose-800 bg-rose-950/40 p-4 text-rose-200">
+      {{ error }}
+    </div>
+  {% else %}
+    <div class="flex flex-col gap-2">
+      <div class="flex items-center justify-between gap-4">
+        <div>
+          <h1 class="text-2xl font-semibold tracking-tight">{{ info.name or name }}</h1>
+          {% if info.summary %}
+            <div class="mt-1 text-slate-300">{{ info.summary }}</div>
+          {% endif %}
+        </div>
+        {% if info.version %}
+          <div class="text-xs rounded-full border border-slate-700 bg-slate-950 px-3 py-1 text-slate-300">
+            latest {{ info.version }}
+          </div>
+        {% endif %}
+      </div>
+
+      <div class="mt-3 rounded-xl border border-slate-800 bg-slate-900/40 p-4">
+        <div class="text-sm text-slate-300">Install via your server</div>
+        <pre class="mt-2 overflow-auto rounded-lg border border-slate-800 bg-slate-950 p-3 text-xs text-slate-200">pip install --index-url {{ public_base_url }}/simple --trusted-host {{ public_host }} {{ info.name or name }}</pre>
+      </div>
+
+      <div class="mt-2 flex flex-wrap gap-2 text-sm">
+        {% if info.home_page %}
+          <a class="text-indigo-300 hover:text-indigo-200" href="{{ info.home_page }}" target="_blank" rel="noreferrer">Homepage</a>
+        {% endif %}
+        {% if info.project_url %}
+          <a class="text-indigo-300 hover:text-indigo-200" href="{{ info.project_url }}" target="_blank" rel="noreferrer">Project</a>
+        {% endif %}
+        {% if info.author %}
+          <span class="text-slate-500">·</span>
+          <span class="text-slate-300">By {{ info.author }}</span>
+        {% endif %}
+        {% if info.license %}
+          <span class="text-slate-500">·</span>
+          <span class="text-slate-300">{{ info.license }}</span>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="mt-8 grid gap-6 lg:grid-cols-5">
+      <section class="lg:col-span-3">
+        <h2 class="text-lg font-semibold">Description</h2>
+        <div class="mt-3 rounded-xl border border-slate-800 bg-slate-900/40 p-5">
+          {% if rendered_description %}
+            {% if description_is_markdown %}
+              <div class="prose prose-invert max-w-none">
+                {{ rendered_description | safe }}
+              </div>
+            {% else %}
+              <pre class="whitespace-pre-wrap text-sm text-slate-200">{{ rendered_description }}</pre>
+            {% endif %}
+          {% else %}
+            <div class="text-sm text-slate-400">No description.</div>
+          {% endif %}
+        </div>
+      </section>
+
+      <aside class="lg:col-span-2">
+        <h2 class="text-lg font-semibold">Versions</h2>
+        <div class="mt-3 rounded-xl border border-slate-800 bg-slate-900/40">
+          <div class="max-h-[28rem] overflow-auto">
+            <ul class="divide-y divide-slate-800">
+              {% for v in versions %}
+                <li>
+                  <a href="/package/{{ name }}/{{ v }}" class="flex items-center justify-between px-4 py-3 hover:bg-slate-900/60">
+                    <span class="font-mono text-sm text-slate-200">{{ v }}</span>
+                    <span class="text-xs text-slate-500">→</span>
+                  </a>
+                </li>
+              {% endfor %}
+            </ul>
+          </div>
+        </div>
+      </aside>
+    </div>
+  {% endif %}
+{% endblock %}

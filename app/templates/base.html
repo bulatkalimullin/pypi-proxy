@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{% block title %}PyPI Web UI{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="min-h-screen bg-slate-950 text-slate-100">
+    <header class="border-b border-slate-800 bg-slate-950/60 backdrop-blur">
+      <div class="mx-auto max-w-5xl px-4 py-4 flex items-center gap-4">
+        <a href="/" class="font-semibold tracking-tight text-slate-50">PyPI Web UI</a>
+        <form action="/search" method="get" class="flex-1">
+          <div class="flex gap-2">
+            <input
+              name="q"
+              value="{{ q or '' }}"
+              placeholder="Search packages (e.g. fastapi)"
+              class="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+            <button
+              class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium hover:bg-indigo-500"
+              type="submit"
+            >
+              Search
+            </button>
+          </div>
+        </form>
+      </div>
+    </header>
+    <main class="mx-auto max-w-5xl px-4 py-8">
+      {% block content %}{% endblock %}
+    </main>
+    <footer class="border-t border-slate-800 py-8">
+      <div class="mx-auto max-w-5xl px-4 text-sm text-slate-400">
+        Powered by FastAPI. Metadata from PyPI.
+      </div>
+    </footer>
+  </body>
+</html>

@@ -1,0 +1,24 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    ports:
+      - "8888:8888"
+    environment:
+      - CACHE_DIR=/app/cache
+      - METADATA_TTL_SECONDS=900
+      - PYPI_BASE_URL=https://pypi.org
+      - PUBLIC_BASE_URL=http://lab.webflare.ru:8888
+      - SIMPLE_INDEX_TTL_SECONDS=86400
+    volumes:
+      - ./cache:/app/cache
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend

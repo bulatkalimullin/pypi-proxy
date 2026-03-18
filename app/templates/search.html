@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Search{% endblock %}
+{% block content %}
+  <div class="flex items-end justify-between gap-4">
+    <div>
+      <h1 class="text-xl font-semibold tracking-tight">Search</h1>
+      <p class="mt-1 text-sm text-slate-400">
+        {% if q %}Query: <span class="text-slate-200">{{ q }}</span>{% else %}Type a query above.{% endif %}
+      </p>
+    </div>
+    {% if q %}
+      <div class="text-sm text-slate-400">Page {{ page }}</div>
+    {% endif %}
+  </div>
+
+  {% if error %}
+    <div class="mt-6 rounded-xl border border-rose-800 bg-rose-950/40 p-4 text-rose-200">
+      {{ error }}
+    </div>
+  {% endif %}
+
+  {% if q and results|length == 0 and not error %}
+    <div class="mt-6 rounded-xl border border-slate-800 bg-slate-900/40 p-6 text-slate-300">
+      No results.
+    </div>
+  {% endif %}
+
+  {% if results|length > 0 %}
+    <div class="mt-6 grid gap-3">
+      {% for r in results %}
+        <a href="/package/{{ r.name }}" class="block rounded-xl border border-slate-800 bg-slate-900/40 p-4 hover:border-slate-700 hover:bg-slate-900/60">
+          <div class="flex items-center justify-between gap-4">
+            <div class="font-medium text-slate-100">{{ r.name }}</div>
+            {% if r.version %}
+              <div class="text-xs rounded-full border border-slate-700 bg-slate-950 px-2 py-1 text-slate-300">
+                {{ r.version }}
+              </div>
+            {% endif %}
+          </div>
+          {% if r.description %}
+            <div class="mt-2 text-sm text-slate-300 line-clamp-2">{{ r.description }}</div>
+          {% endif %}
+        </a>
+      {% endfor %}
+    </div>
+
+    <div class="mt-8 flex items-center justify-between">
+      {% if page > 1 %}
+        <a class="text-sm text-slate-300 hover:text-slate-100" href="/search?q={{ q }}&page={{ page - 1 }}">← Prev</a>
+      {% else %}
+        <span></span>
+      {% endif %}
+      <a class="text-sm text-slate-300 hover:text-slate-100" href="/search?q={{ q }}&page={{ page + 1 }}">Next →</a>
+    </div>
+  {% endif %}
+{% endblock %}

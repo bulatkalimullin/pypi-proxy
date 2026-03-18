@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}PyPI Web UI{% endblock %}
+{% block content %}
+  <div class="rounded-2xl border border-slate-800 bg-slate-900/40 p-8">
+    <h1 class="text-2xl font-semibold tracking-tight">Search PyPI via your server</h1>
+    <p class="mt-2 text-slate-300">
+      Find packages, inspect versions and metadata, and download wheels/sdists with server-side caching.
+    </p>
+    <div class="mt-6">
+      <form action="/search" method="get" class="flex gap-2">
+        <input
+          name="q"
+          autofocus
+          placeholder="Try: requests, fastapi, numpy…"
+          class="w-full rounded-lg border border-slate-800 bg-slate-950 px-4 py-3 text-base text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        />
+        <button class="rounded-lg bg-indigo-600 px-5 py-3 font-medium hover:bg-indigo-500" type="submit">
+          Search
+        </button>
+      </form>
+    </div>
+  </div>
+{% endblock %}
