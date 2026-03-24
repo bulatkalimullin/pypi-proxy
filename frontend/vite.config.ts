@@ -13,6 +13,10 @@ export default defineConfig({
         target: "http://backend:8888",
         changeOrigin: true,
       },
+      "/js-proxy": {
+        target: "http://backend:8888",
+        changeOrigin: true,
+      },
     },
   },
 });
