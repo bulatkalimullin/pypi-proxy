@@ -219,3 +219,42 @@ export async function searchCdnjsLibraries(query: string): Promise<CdnjsLibrary[
   return data.results ?? [];
 }
 
+export type ExtensionVersion = {
+  version: string;
+  lastUpdated: string;
+  downloadUrl: string;
+  vsixAssetPath: string;
+};
+
+export type ExtensionInfo = {
+  id: string;
+  publisher: string;
+  name: string;
+  displayName: string;
+  description: string;
+  logoUrl: string;
+  rating: number;
+  ratingCount: number;
+  installs: number;
+  verified: boolean;
+  categories: string[];
+  tags: string[];
+  source: "marketplace" | "openvsx";
+  builtInInstallSource?: "openvsx" | "marketplace";
+  versions: ExtensionVersion[];
+};
+
+export type ExtensionSearchResponse = {
+  q: string;
+  page: number;
+  count: number;
+  results: ExtensionInfo[];
+  hasMore?: boolean;
+  nextPage?: number | null;
+};
+
+export type ExtensionVersionsResponse = {
+  id: string;
+  versions: ExtensionVersion[];
+};
+

@@ -17,6 +17,10 @@ services:
       - DOCKER_AUTH_URL=${DOCKER_AUTH_URL:-https://auth.docker.io/token}
     volumes:
       - ./cache:/app/cache
+    networks:
+      pypi-net:
+        aliases:
+          - backend
 
   frontend:
     build:
@@ -28,3 +32,12 @@ services:
       - backend
     environment:
       - VITE_PUBLIC_BASE_URL=${PUBLIC_BASE_URL:-http://localhost:8888}
+    networks:
+      pypi-net:
+        aliases:
+          - frontend
+
+networks:
+  pypi-net:
+    external: true
+    name: pypi-net

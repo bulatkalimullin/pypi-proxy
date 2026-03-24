@@ -5,21 +5,23 @@ import { CodeBlock } from "./CodeBlock";
 type Tab = "pull" | "compose" | "dockerfile" | "daemon" | "buildx";
 
 function proxyHost(): string {
+  // In production, commands must point to the public site host.
+  if (typeof window !== "undefined") {
+    const webHost = window.location.host;
+    const isLocalHost = /^(localhost|127\.0\.0\.1)(:\d+)?$/i.test(webHost);
+    if (webHost && !isLocalHost) {
+      return webHost;
+    }
+  }
+
   const fromEnv = import.meta.env.VITE_PUBLIC_BASE_URL as string | undefined;
-  const raw = fromEnv ? fromEnv.replace(/\/$/, "") : (() => {
-    const u = new URL(window.location.href);
-    u.port = "8888";
-    u.pathname = "";
-    u.search = "";
-    u.hash = "";
-    return u.toString().replace(/\/$/, "");
-  })();
+  const raw = fromEnv ? fromEnv.replace(/\/$/, "") : "";
   // Docker needs host:port without protocol
   try {
     const u = new URL(raw.startsWith("http") ? raw : `http://${raw}`);
-    return u.host; // "lab.webflare.ru:8888"
+    return u.host;
   } catch {
-    return raw;
+    return raw || "localhost:8888";
   }
 }
 

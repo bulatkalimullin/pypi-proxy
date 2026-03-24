@@ -22,6 +22,7 @@ jobs:
           script: |
             set -euo pipefail
             cd /root/pypi
-            export PUBLIC_BASE_URL="http://lab.webflare.ru:8888"
+            export DOMAIN="${{ secrets.DEPLOY_HOST }}"
+            export LISTEN_IP="194.87.189.114"
             bash deploy/deploy.sh
 

@@ -15,6 +15,8 @@ const NugetPackagePage = React.lazy(() => import("../pages/NugetPackagePage"));
 const DockerSearchPage = React.lazy(() => import("../pages/DockerSearchPage"));
 const DockerPackagePage = React.lazy(() => import("../pages/DockerPackagePage"));
 const JsLibrariesPage = React.lazy(() => import("../pages/JsLibrariesPage"));
+const ExtensionsSearchPage = React.lazy(() => import("../pages/ExtensionsSearchPage"));
+const ExtensionPackagePage = React.lazy(() => import("../pages/ExtensionPackagePage"));
 
 function PageFallback() {
   return (
@@ -50,6 +52,9 @@ export function Router() {
           <Route path="/docker/image/*" element={<DockerPackagePage />} />
           {/* JS Libraries */}
           <Route path="/js-libraries" element={<JsLibrariesPage />} />
+          {/* VSCode Extensions */}
+          <Route path="/extensions" element={<ExtensionsSearchPage />} />
+          <Route path="/extensions/:publisher/:name" element={<ExtensionPackagePage />} />
           {/* Admin */}
           <Route
             path="/admin"

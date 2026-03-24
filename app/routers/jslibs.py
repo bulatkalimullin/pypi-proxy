@@ -3,7 +3,7 @@ from __future__ import annotations
 from urllib.parse import urlparse
 
 from fastapi import APIRouter, HTTPException, Query, Request
-from fastapi.background import BackgroundTask
+from starlette.background import BackgroundTask
 from fastapi.responses import JSONResponse, StreamingResponse
 import httpx
 

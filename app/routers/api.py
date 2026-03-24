@@ -192,6 +192,44 @@ async def clear_nuget_package_cache(
     return {"status": "deleted" if existed else "not_found", "name": name}
 
 
+@router.delete("/extensions/cache")
+async def clear_extensions_cache(
+    request: Request, _: None = Depends(_require_admin)
+) -> dict[str, str]:
+    """Clear all cached VS Code extension files."""
+    import shutil
+
+    ext_cache: FileCache = request.app.state.extensions_cache
+    dl_stats: DownloadStats = request.app.state.download_stats
+    for pkg_dir in ext_cache.root_dir.iterdir():
+        if pkg_dir.is_dir():
+            shutil.rmtree(pkg_dir, ignore_errors=True)
+            stats_key = pkg_dir.name.replace("__", ".", 1)
+            dl_stats.reset(f"extensions:{stats_key}")
+    meta_cache: MetadataCache = request.app.state.meta_cache
+    for key in list(meta_cache._store.keys()):
+        if key.startswith("ext_"):
+            meta_cache._store.pop(key, None)
+    return {"status": "cleared"}
+
+
+@router.delete("/extensions/cache/{publisher}/{name}")
+async def clear_extension_cache(
+    publisher: str, name: str, request: Request, _: None = Depends(_require_admin)
+) -> dict[str, str]:
+    ext_cache: FileCache = request.app.state.extensions_cache
+    meta_cache: MetadataCache = request.app.state.meta_cache
+    dl_stats: DownloadStats = request.app.state.download_stats
+    cache_key = f"{publisher}__{name}"
+    existed = ext_cache.delete_package(cache_key)
+    dl_stats.reset(f"extensions:{publisher}.{name}")
+    meta_cache._store.pop(f"ext_detail:{publisher}.{name}", None)
+    for key in list(meta_cache._store.keys()):
+        if key.startswith("ext_search:"):
+            meta_cache._store.pop(key, None)
+    return {"status": "deleted" if existed else "not_found", "name": f"{publisher}.{name}"}
+
+
 @router.get("/package/{name}")
 async def package(request: Request, name: str):
     pypi: SharedPyPIClient = request.app.state.pypi

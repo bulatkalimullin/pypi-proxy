@@ -35,13 +35,14 @@ const rowVariants = {
   exit: { opacity: 0, x: 16, transition: { duration: 0.15 } },
 };
 
-type Ecosystem = "python" | "npm" | "nuget" | "docker";
+type Ecosystem = "python" | "npm" | "nuget" | "docker" | "extensions";
 
 const ECOSYSTEMS: { id: Ecosystem; label: string; accentVar: string; color: string }[] = [
   { id: "python", label: "Python", accentVar: "--eco-python", color: "hsl(243, 75%, 59%)" },
   { id: "npm",    label: "npm",    accentVar: "--eco-npm",    color: "hsl(0, 76%, 51%)" },
   { id: "nuget",  label: "NuGet",  accentVar: "--eco-nuget",  color: "hsl(208, 100%, 30%)" },
   { id: "docker", label: "Docker", accentVar: "--eco-docker", color: "hsl(210, 85%, 55%)" },
+  { id: "extensions", label: "Extensions", accentVar: "--eco-vscode", color: "hsl(207, 100%, 50%)" },
 ];
 
 // Tiny ecosystem icon for cache list rows
@@ -63,6 +64,13 @@ function EcoIcon({ eco }: { eco: Ecosystem }) {
     <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"
       style={{ color: "hsl(var(--eco-nuget))", opacity: 0.5, flexShrink: 0 }}>
       <path d="M19.765 6.782L12 2.25 4.235 6.782v9.064L12 20.378l7.765-4.532V6.782zm-7.765 9.544l-5.765-3.364V8.3L12 4.936l5.765 3.364v4.662L12 16.326z"/>
+    </svg>
+  );
+  // docker
+  if (eco === "extensions") return (
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"
+      style={{ color: "hsl(var(--eco-vscode))", opacity: 0.5, flexShrink: 0 }}>
+      <path d="M16.98 2 6.34 12.1l3.42 3.2L19.4 6v12l-9.64-9.3-3.42 3.2L16.98 22 22 20V4l-5.02-2zM2 12l2.86-2.55 2.11 2.04-2.1 2.04L2 12z" />
     </svg>
   );
   // docker
@@ -90,6 +98,12 @@ function CacheList({
   const filtered = filter.trim()
     ? packages.filter((p) => p.toLowerCase().includes(filter.trim().toLowerCase()))
     : packages;
+  const packageDownloadCount = (name: string): number | undefined => {
+    if (!stats?.download_counts) return undefined;
+    if (ecosystem === "python") return stats.download_counts[name];
+    if (ecosystem === "extensions") return stats.download_counts[`extensions:${name}`];
+    return undefined;
+  };
 
   const handleDelete = async (name: string) => {
     setDeletingLocal(name);
@@ -182,9 +196,9 @@ function CacheList({
                 <div className="flex items-center gap-2.5 min-w-0">
                   <EcoIcon eco={ecosystem} />
                   <span className="font-mono text-sm truncate">{name}</span>
-                  {ecosystem === "python" && stats?.download_counts?.[name] ? (
+                  {packageDownloadCount(name) ? (
                     <span className="flex-shrink-0 text-xs text-muted-foreground">
-                      {stats.download_counts[name]} dl
+                      {packageDownloadCount(name)} dl
                     </span>
                   ) : null}
                 </div>
@@ -243,6 +257,13 @@ export default function AdminPage() {
   const dockerCachedQ = useQuery({
     queryKey: ["admin", "cached", "docker"],
     queryFn: () => apiGet<{ images: string[] }>("/api/docker/cached").then((r) => ({ packages: r.images })),
+  });
+  const extCachedQ = useQuery({
+    queryKey: ["admin", "cached", "extensions"],
+    queryFn: () =>
+      apiGet<ApiCachedResponse>("/api/extensions/cached").then((r) => ({
+        packages: (r.packages || []).map((p) => p.replace("__", ".")),
+      })),
   });
 
   const stats = statsQ.data;
@@ -316,13 +337,39 @@ export default function AdminPage() {
     } catch (e) { toast(`Failed: ${e}`, "error"); }
   };
 
+  const handleExtensionsDelete = async (id: string) => {
+    try {
+      const [publisher, ...rest] = id.split(".");
+      const name = rest.join(".");
+      if (!publisher || !name) throw new Error("Invalid extension id");
+      await apiDelete(`/api/extensions/cache/${encodeURIComponent(publisher)}/${encodeURIComponent(name)}`);
+      toast(`Deleted extensions cache for ${id}`, "success");
+      void queryClient.invalidateQueries({ queryKey: ["admin", "cached", "extensions"] });
+    } catch (e) { toast(`Failed to delete ${id}: ${e}`, "error"); throw e; }
+  };
+  const handleExtensionsClearAll = async () => {
+    try {
+      await apiDelete("/api/extensions/cache");
+      toast("Extensions cache cleared", "success");
+      void queryClient.invalidateQueries({ queryKey: ["admin", "cached", "extensions"] });
+    } catch (e) { toast(`Failed: ${e}`, "error"); }
+  };
+
   const pythonPkgs = cachedQ.data?.packages ?? [];
   const npmPkgs = npmCachedQ.data?.packages ?? [];
   const nugetPkgs = nugetCachedQ.data?.packages ?? [];
   const dockerPkgs = dockerCachedQ.data?.packages ?? [];
+  const extPkgs = extCachedQ.data?.packages ?? [];
 
   const topDownloads = stats?.top_downloads ?? [];
   const maxDownloads = topDownloads.reduce((m, d) => Math.max(m, d.count), 1);
+  const topRowColor = (name: string): string => {
+    if (name.startsWith("extensions:")) return "hsl(var(--eco-vscode)/0.7)";
+    if (name.includes("/")) return "hsl(var(--eco-docker)/0.7)";
+    if (name.includes("@") || name.startsWith("npm:")) return "hsl(var(--eco-npm)/0.7)";
+    if (name.includes(".nupkg") || name.startsWith("nuget:")) return "hsl(var(--eco-nuget)/0.7)";
+    return "hsl(var(--eco-python)/0.7)";
+  };
 
   return (
     <div>
@@ -361,9 +408,15 @@ export default function AdminPage() {
               <StatCard index={1} label="npm cached" value={String(npmPkgs.length)} color="hsl(var(--eco-npm))" />
               <StatCard index={2} label="NuGet cached" value={String(nugetPkgs.length)} color="hsl(var(--eco-nuget))" />
               <StatCard index={3} label="Docker cached" value={String(dockerPkgs.length)} color="hsl(var(--eco-docker))" />
-              <StatCard index={4} label="Uptime" value={formatUptime(stats?.uptime_seconds ?? 0)} />
+              <StatCard index={4} label="Ext cached" value={String(extPkgs.length)} color="hsl(var(--eco-vscode))" />
             </>
           )}
+        </div>
+      </ScrollReveal>
+
+      <ScrollReveal className="mt-4">
+        <div className="grid gap-4 grid-cols-1">
+          <StatCard index={5} label="Uptime" value={formatUptime(stats?.uptime_seconds ?? 0)} />
         </div>
       </ScrollReveal>
 
@@ -392,7 +445,7 @@ export default function AdminPage() {
                     <div className="flex-1 h-1.5 rounded-full bg-muted/40 overflow-hidden">
                       <motion.div
                         className="h-full rounded-full"
-                        style={{ backgroundColor: "hsl(var(--eco-python)/0.6)" }}
+                        style={{ backgroundColor: topRowColor(item.name) }}
                         initial={{ width: 0 }}
                         animate={{ width: `${(item.count / maxDownloads) * 100}%` }}
                         transition={{ duration: 0.5, delay: i * 0.05 }}
@@ -465,6 +518,11 @@ export default function AdminPage() {
               <CacheList packages={dockerPkgs} loading={dockerCachedQ.isLoading} ecosystem="docker"
                 onDelete={handleDockerDelete} onClearAll={handleDockerClearAll}
                 onRefresh={() => void queryClient.invalidateQueries({ queryKey: ["admin", "cached", "docker"] })} />
+            )}
+            {ecoTab === "extensions" && (
+              <CacheList packages={extPkgs} loading={extCachedQ.isLoading} ecosystem="extensions"
+                onDelete={handleExtensionsDelete} onClearAll={handleExtensionsClearAll}
+                onRefresh={() => void queryClient.invalidateQueries({ queryKey: ["admin", "cached", "extensions"] })} />
             )}
           </motion.div>
         </AnimatePresence>

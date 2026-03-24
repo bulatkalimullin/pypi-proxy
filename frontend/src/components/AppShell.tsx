@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ThemeToggle } from "./ThemeToggle";
 import { routeVariants } from "../lib/motion";
 
-type EcoId = "python" | "npm" | "nuget" | "docker" | "js";
+type EcoId = "python" | "npm" | "nuget" | "docker" | "js" | "vscode";
 
 const EcosystemNav: {
   to: string;
@@ -58,6 +58,17 @@ const EcosystemNav: {
       </svg>
     ),
     match: (p) => p.startsWith("/docker"),
+  },
+  {
+    to: "/extensions",
+    id: "vscode",
+    label: "VS Code",
+    icon: (
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <path d="M16.98 2 6.34 12.1l3.42 3.2L19.4 6v12l-9.64-9.3-3.42 3.2L16.98 22 22 20V4l-5.02-2zM2 12l2.86-2.55 2.11 2.04-2.1 2.04L2 12z" />
+      </svg>
+    ),
+    match: (p) => p.startsWith("/extensions"),
   },
   {
     to: "/js-libraries",

@@ -27,6 +27,7 @@
     --eco-nuget:  208 100% 30%;
     --eco-docker: 210 85% 55%;
     --eco-js:     46 100% 50%;
+    --eco-vscode: 207 100% 50%;
 
     /* Elevation shadows */
     --shadow-sm: 0 1px 2px hsl(var(--foreground) / 0.04);
@@ -58,6 +59,7 @@
     --eco-nuget:  208 100% 45%;
     --eco-docker: 210 85% 62%;
     --eco-js:     46 100% 62%;
+    --eco-vscode: 207 100% 64%;
 
     /* Elevation shadows — stronger on dark */
     --shadow-sm: 0 1px 2px hsl(0 0% 0% / 0.18);

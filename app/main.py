@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.templating import Jinja2Templates
 
 from app.config import get_settings
-from app.routers import api, docker, downloads, jslibs, npm, nuget, pages, simple
+from app.routers import api, docker, downloads, jslibs, npm, nuget, pages, simple, vscode_extensions
 from app.services.cache import FileCache, MetadataCache
 from app.services.docker_client import SharedDockerRegistryClient
 from app.services.js_proxy_client import JsProxyStats, SharedJsProxyClient
@@ -17,6 +17,7 @@ from app.services.nuget_client import SharedNuGetClient
 from app.services.pypi_client import SharedPyPIClient
 from app.services.simple_index import SimpleIndex, SimpleIndexSettings
 from app.services.stats import DownloadStats
+from app.services.vscode_extensions_client import SharedVsCodeExtensionsClient
 
 
 @asynccontextmanager
@@ -29,6 +30,7 @@ async def lifespan(app: FastAPI):
     app.state.file_cache = FileCache(root_dir=settings.cache_dir)
     app.state.npm_cache = FileCache(root_dir=settings.cache_dir / "npm")
     app.state.nuget_cache = FileCache(root_dir=settings.cache_dir / "nuget")
+    app.state.extensions_cache = FileCache(root_dir=settings.cache_dir / "extensions")
 
     docker_cache_dir = settings.cache_dir / "docker"
     docker_cache_dir.mkdir(parents=True, exist_ok=True)
@@ -48,6 +50,7 @@ async def lifespan(app: FastAPI):
         auth_url=settings.docker_auth_url,
     )
     app.state.js_proxy_client = SharedJsProxyClient()
+    app.state.extensions_client = SharedVsCodeExtensionsClient()
     app.state.js_proxy_stats = JsProxyStats()
     app.state.simple_index = SimpleIndex(
         SimpleIndexSettings(
@@ -68,6 +71,7 @@ async def lifespan(app: FastAPI):
     await app.state.nuget_client.aclose()
     await app.state.docker_client.aclose()
     await app.state.js_proxy_client.aclose()
+    await app.state.extensions_client.aclose()
 
 
 app = FastAPI(title="Package Proxy", lifespan=lifespan)
@@ -88,3 +92,4 @@ app.include_router(npm.router)
 app.include_router(nuget.router)
 app.include_router(docker.router)
 app.include_router(jslibs.router)
+app.include_router(vscode_extensions.router)
