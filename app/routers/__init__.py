@@ -1,1 +1,1 @@
-__all__ = ["pages", "downloads", "api", "simple", "npm", "nuget", "docker"]
+__all__ = ["pages", "downloads", "api", "simple", "npm", "nuget", "docker", "jslibs"]

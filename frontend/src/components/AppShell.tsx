@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ThemeToggle } from "./ThemeToggle";
 import { routeVariants } from "../lib/motion";
 
-type EcoId = "python" | "npm" | "nuget" | "docker";
+type EcoId = "python" | "npm" | "nuget" | "docker" | "js";
 
 const EcosystemNav: {
   to: string;
@@ -58,6 +58,17 @@ const EcosystemNav: {
       </svg>
     ),
     match: (p) => p.startsWith("/docker"),
+  },
+  {
+    to: "/js-libraries",
+    id: "js",
+    label: "JS",
+    icon: (
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <path d="M2 3h20v18H2V3zm11.2 13.53c.42.7 1.03 1.21 2.07 1.21 1.09 0 1.78-.55 1.78-1.31 0-.91-.72-1.23-1.94-1.76l-.67-.29c-1.93-.82-3.2-1.85-3.2-4.02 0-2 1.52-3.52 3.9-3.52 1.69 0 2.9.59 3.77 2.12l-2.07 1.33c-.46-.82-.95-1.14-1.7-1.14-.77 0-1.26.49-1.26 1.14 0 .8.49 1.12 1.62 1.61l.67.29c2.27.97 3.54 1.96 3.54 4.19 0 2.4-1.88 3.71-4.41 3.71-2.47 0-4.06-1.18-4.84-2.73l2.14-1.23zM7.57 16.58c.43.77.82 1.42 1.76 1.42.9 0 1.47-.35 1.47-1.72V7h2.73v9.32c0 2.83-1.66 4.12-4.08 4.12-2.18 0-3.43-1.12-4.08-2.47l2.2-1.39z" />
+      </svg>
+    ),
+    match: (p) => p.startsWith("/js-libraries"),
   },
 ];
 

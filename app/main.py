@@ -8,9 +8,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.templating import Jinja2Templates
 
 from app.config import get_settings
-from app.routers import api, docker, downloads, npm, nuget, pages, simple
+from app.routers import api, docker, downloads, jslibs, npm, nuget, pages, simple
 from app.services.cache import FileCache, MetadataCache
 from app.services.docker_client import SharedDockerRegistryClient
+from app.services.js_proxy_client import JsProxyStats, SharedJsProxyClient
 from app.services.npm_client import SharedNpmClient
 from app.services.nuget_client import SharedNuGetClient
 from app.services.pypi_client import SharedPyPIClient
@@ -46,6 +47,8 @@ async def lifespan(app: FastAPI):
         registry_url=settings.docker_registry_url,
         auth_url=settings.docker_auth_url,
     )
+    app.state.js_proxy_client = SharedJsProxyClient()
+    app.state.js_proxy_stats = JsProxyStats()
     app.state.simple_index = SimpleIndex(
         SimpleIndexSettings(
             base_url=settings.pypi_base_url,
@@ -64,6 +67,7 @@ async def lifespan(app: FastAPI):
     await app.state.npm_client.aclose()
     await app.state.nuget_client.aclose()
     await app.state.docker_client.aclose()
+    await app.state.js_proxy_client.aclose()
 
 
 app = FastAPI(title="Package Proxy", lifespan=lifespan)
@@ -83,3 +87,4 @@ app.include_router(simple.router)
 app.include_router(npm.router)
 app.include_router(nuget.router)
 app.include_router(docker.router)
+app.include_router(jslibs.router)

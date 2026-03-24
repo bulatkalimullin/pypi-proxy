@@ -78,6 +78,33 @@ export type NugetSearchResponse = {
   hasMore: boolean;
 };
 
+export type JsHealthResponse = {
+  url: string;
+  ok: boolean;
+  status_code: number | null;
+  content_type: string | null;
+  checked_at: string;
+  message: string | null;
+};
+
+export type JsStatsResponse = {
+  total_proxy_requests: number;
+  unique_urls: number;
+  unique_domains: number;
+  top_urls: Array<{ url: string; count: number }>;
+  top_domains: Array<{ domain: string; count: number }>;
+  last_health_checks: Record<
+    string,
+    {
+      ok: boolean;
+      status_code: number | null;
+      content_type: string | null;
+      checked_at: string;
+      message: string | null;
+    }
+  >;
+};
+
 const ADMIN_TOKEN_KEY = "admin_token";
 
 export function getAdminToken(): string | null {
@@ -146,5 +173,17 @@ export async function apiGet<T>(path: string): Promise<T> {
     throw new Error(`${res.status} ${res.statusText}${text ? `: ${text}` : ""}`);
   }
   return (await res.json()) as T;
+}
+
+export function buildJsProxyUrl(targetUrl: string): string {
+  return `/js-proxy?url=${encodeURIComponent(targetUrl)}`;
+}
+
+export async function getJsHealth(targetUrl: string): Promise<JsHealthResponse> {
+  return apiGet<JsHealthResponse>(`/api/js/health?url=${encodeURIComponent(targetUrl)}`);
+}
+
+export async function getJsStats(): Promise<JsStatsResponse> {
+  return apiGet<JsStatsResponse>("/api/js/stats");
 }
 
