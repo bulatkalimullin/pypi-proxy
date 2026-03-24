@@ -21,22 +21,38 @@ class ExtensionVersion:
 
 class VsCodeExtensionsClient:
     def __init__(self) -> None:
+        pool_limits = httpx.Limits(
+            max_connections=40,
+            max_keepalive_connections=20,
+            keepalive_expiry=30,
+        )
         self._market_client = httpx.AsyncClient(
             base_url="https://marketplace.visualstudio.com",
-            timeout=httpx.Timeout(30.0),
+            timeout=httpx.Timeout(30.0, connect=10.0),
             follow_redirects=True,
             headers={"User-Agent": "pkg-proxy-vscode/0.1"},
+            limits=pool_limits,
+            http2=True,
         )
         self._openvsx_client = httpx.AsyncClient(
             base_url="https://open-vsx.org",
-            timeout=httpx.Timeout(30.0),
+            timeout=httpx.Timeout(30.0, connect=10.0),
             follow_redirects=True,
             headers={"User-Agent": "pkg-proxy-vscode/0.1"},
+            limits=pool_limits,
+            http2=True,
+        )
+        self._download_client = httpx.AsyncClient(
+            timeout=httpx.Timeout(120.0, connect=15.0),
+            follow_redirects=True,
+            headers={"User-Agent": "pkg-proxy-vscode/0.1"},
+            limits=httpx.Limits(max_connections=20, max_keepalive_connections=10),
         )
 
     async def aclose(self) -> None:
         await self._market_client.aclose()
         await self._openvsx_client.aclose()
+        await self._download_client.aclose()
 
     async def search(
         self,
@@ -129,15 +145,11 @@ class VsCodeExtensionsClient:
         return download_url
 
     async def open_download_stream(self, url: str) -> httpx.Response:
-        req = self._market_client.build_request("GET", url)
-        resp = await self._market_client.send(req, stream=True)
+        req = self._download_client.build_request("GET", url)
+        resp = await self._download_client.send(req, stream=True)
         if resp.status_code != 200:
             await resp.aclose()
-            req = self._openvsx_client.build_request("GET", url)
-            resp = await self._openvsx_client.send(req, stream=True)
-            if resp.status_code != 200:
-                await resp.aclose()
-                raise VsCodeExtensionsError(f"VSIX download failed: {url}")
+            raise VsCodeExtensionsError(f"VSIX download failed: {url}")
         return resp
 
     async def _search_marketplace(

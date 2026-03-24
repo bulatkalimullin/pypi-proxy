@@ -23,8 +23,14 @@ class PyPIClient:
         self._base_url = base_url.rstrip("/")
         self._client = httpx.AsyncClient(
             base_url=self._base_url,
-            timeout=httpx.Timeout(30.0),
+            timeout=httpx.Timeout(30.0, connect=10.0),
             follow_redirects=True,
+            limits=httpx.Limits(
+                max_connections=40,
+                max_keepalive_connections=20,
+                keepalive_expiry=30,
+            ),
+            http2=True,
             headers={
                 # PyPI search HTML may be served differently for non-browser UAs.
                 "User-Agent": (

@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Request
-from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response, StreamingResponse
 
 from app.services.cache import FileCache, MetadataCache
 from app.services.stats import DownloadStats
@@ -153,7 +153,12 @@ async def extension_vsix(request: Request, publisher: str, name: str, version: s
     dest = cache.path_for(f"{publisher}__{name}", "files", file_name)
     if dest.is_file():
         stats.record(stats_key)
-        return FileResponse(path=str(dest), media_type="application/octet-stream", filename=file_name)
+        return FileResponse(
+            path=str(dest),
+            media_type="application/octet-stream",
+            filename=file_name,
+            headers={"Cache-Control": "public, max-age=86400"},
+        )
 
     shared: SharedVsCodeExtensionsClient = request.app.state.extensions_client
     client = await shared.get()
@@ -165,26 +170,176 @@ async def extension_vsix(request: Request, publisher: str, name: str, version: s
     download_url = selected.get("downloadUrl", "")
     if not download_url:
         return JSONResponse(status_code=404, content={"error": "Download URL not found", "version": version})
+
     cache.ensure_parent(dest)
     tmp_path = Path(str(dest) + ".part")
     resp = await client.open_download_stream(download_url)
-    try:
-        with open(tmp_path, "wb") as out:
-            async for chunk in resp.aiter_bytes(65536):
+
+    content_length = resp.headers.get("content-length")
+    headers: dict[str, str] = {"Cache-Control": "public, max-age=86400"}
+    if content_length:
+        headers["Content-Length"] = content_length
+
+    async def _stream_and_cache():
+        out = None
+        try:
+            out = open(tmp_path, "wb")
+            async for chunk in resp.aiter_bytes(131072):
                 if chunk:
                     out.write(chunk)
-        os.replace(str(tmp_path), str(dest))
-    except Exception:
-        try:
-            os.unlink(str(tmp_path))
-        except OSError:
-            pass
-        return JSONResponse(status_code=502, content={"error": "Failed to download VSIX"})
-    finally:
-        await resp.aclose()
+                    yield chunk
+            out.close()
+            out = None
+            os.replace(str(tmp_path), str(dest))
+            stats.record(stats_key)
+        except Exception:
+            if out is not None:
+                out.close()
+            try:
+                os.unlink(str(tmp_path))
+            except OSError:
+                pass
+            raise
+        finally:
+            await resp.aclose()
 
-    stats.record(stats_key)
-    return FileResponse(path=str(dest), media_type="application/octet-stream", filename=file_name)
+    return StreamingResponse(
+        _stream_and_cache(),
+        media_type="application/octet-stream",
+        headers={
+            **headers,
+            "Content-Disposition": f'attachment; filename="{file_name}"',
+        },
+    )
+
+
+@router.get("/extensions/install.sh")
+async def extensions_install_script(request: Request):
+    """One-liner install script: curl -sL <proxy>/extensions/install.sh | bash -s <ext.id>"""
+    base_url = request.app.state.settings.public_base_url or ""
+    script = f"""#!/usr/bin/env bash
+set -euo pipefail
+
+PROXY="{base_url}"
+
+usage() {{
+  echo "Usage:"
+  echo "  curl -sL $PROXY/extensions/install.sh | bash -s -- <publisher.name> [version]"
+  echo "  curl -sL $PROXY/extensions/install.sh | bash -s -- --list python"
+  echo "  curl -sL $PROXY/extensions/install.sh | bash -s -- --setup"
+  echo ""
+  echo "Examples:"
+  echo "  curl -sL $PROXY/extensions/install.sh | bash -s -- ms-python.python"
+  echo "  curl -sL $PROXY/extensions/install.sh | bash -s -- ms-python.python 2024.0.1"
+  exit 0
+}}
+
+detect_editor() {{
+  if command -v code &>/dev/null; then echo "code"
+  elif command -v codium &>/dev/null; then echo "codium"
+  elif command -v cursor &>/dev/null; then echo "cursor"
+  elif command -v code-server &>/dev/null; then echo "code-server"
+  else echo ""; fi
+}}
+
+setup_marketplace() {{
+  EDITOR=$(detect_editor)
+  if [ -z "$EDITOR" ]; then
+    echo "No VS Code-compatible editor found in PATH."
+    exit 1
+  fi
+  echo "Detected editor: $EDITOR"
+  echo ""
+  echo "To use this proxy as your extension marketplace, add to settings.json:"
+  echo ""
+  echo '  "extensions.gallery": {{'
+  echo '    "serviceUrl": "'$PROXY'/_apis/public/gallery",'
+  echo '    "itemUrl": "'$PROXY'/extensions"'
+  echo '  }}'
+  echo ""
+  echo "Then restart your editor."
+}}
+
+search_extensions() {{
+  local query="$1"
+  curl -sf "$PROXY/api/extensions/search?q=$query&limit=10" | \\
+    python3 -c "
+import sys, json
+data = json.load(sys.stdin)
+for r in data.get('results', []):
+    stars = r.get('rating', 0)
+    dl = r.get('installs', 0)
+    print(f\\"  {{r['id']:40s}}  ★ {{stars:.1f}}  ↓ {{dl}}\\")" 2>/dev/null || \\
+    curl -sf "$PROXY/api/extensions/search?q=$query&limit=10"
+}}
+
+install_extension() {{
+  local EXT_ID="$1"
+  local VERSION="${{2:-}}"
+  local PUBLISHER="${{EXT_ID%%.*}}"
+  local NAME="${{EXT_ID#*.}}"
+
+  if [ -z "$PUBLISHER" ] || [ -z "$NAME" ] || [ "$PUBLISHER" = "$NAME" ]; then
+    echo "Invalid extension ID: $EXT_ID (expected: publisher.name)"
+    exit 1
+  fi
+
+  EDITOR=$(detect_editor)
+
+  if [ -n "$EDITOR" ]; then
+    echo "Installing $EXT_ID via $EDITOR CLI..."
+    if $EDITOR --install-extension "$EXT_ID" 2>/dev/null; then
+      echo "Done."
+      exit 0
+    fi
+    echo "CLI install failed, falling back to VSIX download..."
+  fi
+
+  if [ -z "$VERSION" ]; then
+    echo "Resolving latest version..."
+    VERSION=$(curl -sf "$PROXY/api/extensions/$PUBLISHER/$NAME" | \\
+      python3 -c "import sys,json; v=json.load(sys.stdin).get('versions',[]); print(v[0]['version'] if v else '')" 2>/dev/null)
+    if [ -z "$VERSION" ]; then
+      echo "Could not resolve latest version for $EXT_ID"
+      exit 1
+    fi
+    echo "Latest version: $VERSION"
+  fi
+
+  local VSIX_URL="$PROXY/extensions/vsix/$PUBLISHER/$NAME/$VERSION.vsix"
+  local VSIX_FILE="${{EXT_ID}}-${{VERSION}}.vsix"
+
+  echo "Downloading $VSIX_FILE..."
+  curl -fL "$VSIX_URL" -o "$VSIX_FILE"
+
+  if [ -n "$EDITOR" ]; then
+    echo "Installing VSIX..."
+    $EDITOR --install-extension "./$VSIX_FILE"
+    rm -f "$VSIX_FILE"
+    echo "Done."
+  else
+    echo "Downloaded: $VSIX_FILE"
+    echo "Install manually: code --install-extension ./$VSIX_FILE"
+  fi
+}}
+
+[ $# -eq 0 ] && usage
+
+case "$1" in
+  -h|--help) usage ;;
+  --setup) setup_marketplace ;;
+  --list|--search) shift; search_extensions "$@" ;;
+  *) install_extension "$@" ;;
+esac
+"""
+    return Response(
+        content=script,
+        media_type="text/plain; charset=utf-8",
+        headers={
+            "Content-Disposition": "inline; filename=install.sh",
+            "Cache-Control": "public, max-age=3600",
+        },
+    )
 
 
 @router.get("/extensions/feed/index.json")
@@ -216,7 +371,7 @@ async def extensions_cached(request: Request):
 @router.get("/extensions/feed/official-vscode-config.json")
 async def official_vscode_config(request: Request):
     base_url = request.app.state.settings.public_base_url or ""
-    return {
+    return JSONResponse(content={
         "extensionsGallery": {
             "serviceUrl": f"{base_url}/_apis/public/gallery",
             "itemUrl": f"{base_url}/extensions",
@@ -229,7 +384,7 @@ async def official_vscode_config(request: Request):
                 "itemUrl": f"{base_url}/extensions",
             }
         },
-    }
+    }, headers={"Cache-Control": "public, max-age=3600"})
 
 
 @router.get("/extensions/gallery/control")
