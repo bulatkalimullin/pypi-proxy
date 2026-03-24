@@ -100,18 +100,24 @@ class JsProxyClient:
         except socket.gaierror as exc:
             raise JsProxyError(f"Cannot resolve host: {host}") from exc
 
+        has_public_ip = False
         for info in infos:
             ip_raw = info[4][0]
             ip_obj = ipaddress.ip_address(ip_raw)
-            if (
+            is_non_public = (
                 ip_obj.is_private
                 or ip_obj.is_loopback
                 or ip_obj.is_link_local
                 or ip_obj.is_reserved
                 or ip_obj.is_multicast
                 or ip_obj.is_unspecified
-            ):
-                raise JsProxyError("Private or local network targets are not allowed")
+            )
+            if not is_non_public:
+                has_public_ip = True
+                break
+
+        if not has_public_ip:
+            raise JsProxyError("Target host does not resolve to a public IP")
 
     async def health_check(self, url: str) -> JsHealthResult:
         checked_at = datetime.now(timezone.utc).isoformat()

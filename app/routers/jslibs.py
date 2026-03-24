@@ -5,6 +5,7 @@ from urllib.parse import urlparse
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.background import BackgroundTask
 from fastapi.responses import JSONResponse, StreamingResponse
+import httpx
 
 from app.services.js_proxy_client import JsProxyError, JsProxyStats, SharedJsProxyClient
 
@@ -35,6 +36,10 @@ async def js_proxy(
         upstream = await client.stream(valid_url)
     except JsProxyError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=502, detail=f"Upstream request failed: {exc}") from exc
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Proxy failed: {exc}") from exc
 
     domain = urlparse(valid_url).hostname or "unknown"
     js_stats.record_proxy_hit(valid_url, domain)

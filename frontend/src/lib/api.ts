@@ -179,11 +179,43 @@ export function buildJsProxyUrl(targetUrl: string): string {
   return `/js-proxy?url=${encodeURIComponent(targetUrl)}`;
 }
 
+export function buildAbsoluteJsProxyUrl(targetUrl: string): string {
+  if (typeof window === "undefined") return buildJsProxyUrl(targetUrl);
+  return `${window.location.origin}${buildJsProxyUrl(targetUrl)}`;
+}
+
 export async function getJsHealth(targetUrl: string): Promise<JsHealthResponse> {
   return apiGet<JsHealthResponse>(`/api/js/health?url=${encodeURIComponent(targetUrl)}`);
 }
 
 export async function getJsStats(): Promise<JsStatsResponse> {
   return apiGet<JsStatsResponse>("/api/js/stats");
+}
+
+export type CdnjsLibrary = {
+  name: string;
+  latest: string;
+  version?: string;
+  description?: string;
+  homepage?: string;
+  repository?: string;
+};
+
+type CdnjsSearchResponse = {
+  results: CdnjsLibrary[];
+};
+
+export async function searchCdnjsLibraries(query: string): Promise<CdnjsLibrary[]> {
+  const q = query.trim();
+  const url = `https://api.cdnjs.com/libraries?search=${encodeURIComponent(
+    q
+  )}&fields=version,description,homepage,repository`;
+  const res = await fetch(url);
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`${res.status} ${res.statusText}${text ? `: ${text}` : ""}`);
+  }
+  const data = (await res.json()) as CdnjsSearchResponse;
+  return data.results ?? [];
 }
 

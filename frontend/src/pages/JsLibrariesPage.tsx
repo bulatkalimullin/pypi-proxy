@@ -1,23 +1,49 @@
 import React, { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
-import { buildJsProxyUrl, getJsHealth, getJsStats, type JsHealthResponse } from "../lib/api";
+import {
+  buildAbsoluteJsProxyUrl,
+  getJsHealth,
+  getJsStats,
+  searchCdnjsLibraries,
+  type CdnjsLibrary,
+  type JsHealthResponse,
+} from "../lib/api";
 
 const ACCENT = "hsl(var(--eco-js))";
 const EXAMPLE = "https://jsuites.net/v4/jsuites.js";
+const POPULAR_LIBS = [
+  "jquery",
+  "react",
+  "vue",
+  "lodash.js",
+  "axios",
+  "chart.js",
+  "three.js",
+  "moment.js",
+  "swiper",
+  "jsuites",
+];
 
 export default function JsLibrariesPage() {
   const [url, setUrl] = useState(EXAMPLE);
+  const [search, setSearch] = useState("jsuites");
   const [health, setHealth] = useState<JsHealthResponse | null>(null);
   const [healthLoading, setHealthLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const proxyLink = useMemo(() => buildJsProxyUrl(url), [url]);
+  const proxyLink = useMemo(() => buildAbsoluteJsProxyUrl(url), [url]);
 
   const statsQ = useQuery({
     queryKey: ["js", "stats"],
     queryFn: getJsStats,
     refetchInterval: 10_000,
+  });
+
+  const libsQ = useQuery({
+    queryKey: ["cdnjs", "libs", search],
+    queryFn: () => searchCdnjsLibraries(search),
+    staleTime: 30_000,
   });
 
   const onHealthCheck = async () => {
@@ -35,6 +61,11 @@ export default function JsLibrariesPage() {
     }
   };
 
+  const applyLibrary = (lib: CdnjsLibrary) => {
+    if (!lib.latest) return;
+    setUrl(lib.latest);
+  };
+
   return (
     <div className="space-y-5">
       <div className="rounded-2xl border border-border bg-card/40 p-5 sm:p-6">
@@ -49,9 +80,62 @@ export default function JsLibrariesPage() {
           </span>
         </div>
 
-        <p className="mb-4 text-sm text-muted-foreground">
-          Вставьте URL JS-файла и получите локальную прокси-ссылку через ваш сервер.
-        </p>
+        <p className="mb-4 text-sm text-muted-foreground">Каталог популярных библиотек + прокси через ваш сервер.</p>
+
+        <div className="mb-4 space-y-3">
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="h-11 w-full rounded-xl border border-border bg-background/80 px-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2"
+            style={{ "--tw-ring-color": "hsl(var(--eco-js)/0.35)" } as React.CSSProperties}
+            placeholder="Search libraries in cdnjs (e.g. vue, react, jquery)"
+          />
+          <div className="flex flex-wrap gap-2">
+            {POPULAR_LIBS.map((name) => (
+              <button
+                key={name}
+                onClick={() => setSearch(name)}
+                className="rounded-full border border-border bg-background/60 px-2.5 py-0.5 text-xs font-mono text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {name}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {libsQ.isLoading ? <div className="mb-4 text-sm text-muted-foreground">Loading catalog...</div> : null}
+        {libsQ.isError ? <div className="mb-4 text-sm text-red-300">Failed to load catalog from cdnjs</div> : null}
+        {libsQ.data?.length ? (
+          <div className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {libsQ.data.slice(0, 12).map((lib) => (
+              <div key={lib.name} className="rounded-xl border border-border bg-background/60 p-3">
+                <div className="mb-1 font-medium">{lib.name}</div>
+                <div className="mb-2 text-xs text-muted-foreground line-clamp-2">
+                  {lib.description || "No description"}
+                </div>
+                <div className="mb-3 text-xs text-muted-foreground">Version: {lib.version || "unknown"}</div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => applyLibrary(lib)}
+                    className="rounded-lg border border-border bg-card/70 px-3 py-1.5 text-xs hover:bg-card transition-colors"
+                  >
+                    Use in proxy
+                  </button>
+                  {lib.homepage ? (
+                    <a
+                      href={lib.homepage}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="rounded-lg border border-border bg-card/70 px-3 py-1.5 text-xs hover:bg-card transition-colors"
+                    >
+                      Homepage
+                    </a>
+                  ) : null}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : null}
 
         <div className="space-y-3">
           <input
